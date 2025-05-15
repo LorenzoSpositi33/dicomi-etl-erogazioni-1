@@ -2,11 +2,11 @@
   "name": "dicomi-etl-erogazioni",
   "version": "1.0.0",
   "description": "Servizio Dicomi per estrarre le erogazioni sul DICOMI_DB",
-  "main": "main.ts",
+  "main": ".dist/main.js",
   "scripts": {
     "dev": "nodemon --ext ts --exec \"npx tsx src\\main.ts\"",
     "build": "tsc",
-    "start": "node main.js",
+    "start": "node .dist/main.js",
     "postinstall": "npm install -g pm2 typescript"
   },
   "repository": {
