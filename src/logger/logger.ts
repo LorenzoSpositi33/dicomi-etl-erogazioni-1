@@ -38,7 +38,7 @@ const logger: winston.Logger = winston.createLogger({
       ),
     }),
     new winston.transports.File({
-      filename: path.join(__dirname, "..", "logs", "app.log"),
+      filename: path.join(__dirname, "..", "..", "logs", "app.log"),
       maxsize: 500 * 1024 * 1024, // 500MB per file
       maxFiles: 30,
       tailable: true,
@@ -53,7 +53,7 @@ const logger: winston.Logger = winston.createLogger({
       ),
     }),
     new winston.transports.File({
-      filename: path.join(__dirname, "..", "logs", "errors.log"),
+      filename: path.join(__dirname, "..", "..", "logs", "errors.log"),
       level: "error",
       format: winston.format.combine(
         winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
