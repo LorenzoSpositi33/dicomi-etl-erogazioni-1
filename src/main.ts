@@ -226,12 +226,13 @@ logger.info("🚀 Script avviato con successo.", { mail_log: true });
 
 const pool = await getDatabasePool();
 
-// Otteniamo, per ogni impianto rilevato sul DB, l'ultima erogazione registrata
+// Otteniamo, per ogni impianto rilevato sul DB, l'ultima erogazione registrata (Cerco negli ultimi 4 mesi)
 const lastIDList = await executeQuery(`SELECT
 ImpiantoStoreID AS Impianto,
 MAX(ID_ICAD) AS LAST_ID
 
 FROM ${DB_TABLE_EROGAZIONI}
+WHERE DataCompetenza > DATEADD(MONTH, -4, GETDATE())
 
 GROUP BY ImpiantoStoreID`);
 
