@@ -4,11 +4,20 @@ import axios from "axios";
 import { XMLValidator, XMLParser } from "fast-xml-parser";
 import { sql, getDatabasePool } from "./db/db.js";
 import { parse, startOfDay } from "date-fns";
-import { logger } from "./logger/logger.js";
+import { logger, memoryTransport } from "./logger/logger.js";
+import { sendLogSummary } from "./logger/emailSender.js";
+import { log } from "console";
 
 if (
+  !process.env.DB_USER ||
+  !process.env.DB_PASSWORD ||
+  !process.env.DB_SERVER ||
+  !process.env.DB_NAME ||
+  !process.env.DB_ENCRYPT ||
+  !process.env.DB_TRUST_SERVER_CERT ||
   !process.env.API_CRYPTO_KEY ||
   !process.env.API_ROOT ||
+  !process.env.API_RETISTA ||
   !process.env.DB_TABLE_EROGAZIONI
 ) {
   throw "Impostare tutte le variabili di ambiente";
@@ -19,6 +28,9 @@ const API_CRYPTO_KEY = process.env.API_CRYPTO_KEY;
 const API_ROOT = process.env.API_ROOT;
 const API_RETISTA = process.env.API_RETISTA;
 const DB_TABLE_EROGAZIONI = process.env.DB_TABLE_EROGAZIONI;
+
+// KPI per email
+const KPILog: any = {};
 
 /**
  * ICAD_Hash
@@ -95,7 +107,7 @@ async function executeQuery(query: string) {
     const result = await pool?.request().query(query);
     return result?.recordset;
   } catch (err) {
-    logger.error(`Errore durante l'esecuzione della query: ${query}`, err);
+    logger.error(`❌ Errore durante l'esecuzione della query: ${query}`, err);
     throw `Errore nella query: ${err}`;
   }
 }
@@ -124,13 +136,13 @@ async function getListStoreID(ImpiantoCodice = 0) {
       return list.map((item: any) => item.STOREID);
     } else {
       logger.error(
-        `Formato XML dell'anagrafica degli impianti ICAD non valido: ${result.err.msg}`,
+        `❌ Formato XML dell'anagrafica degli impianti ICAD non valido: ${result.err.msg}`,
         result
       );
     }
   } catch (error) {
     logger.error(
-      "Errore durante la chiamata API per ottenere gli impianti:",
+      "❌ Errore durante la chiamata API per ottenere gli impianti:",
       error
     );
     throw `Errore durante la chiamata API per ottenere gli impianti: ${error}`;
@@ -159,14 +171,13 @@ async function getErogazioniList(storeID: string, icadID: number) {
       const xmlBody = response.data;
       const result = XMLValidator.validate(xmlBody);
       if (result !== true) {
-        logger.error("Formato XML delle erogazioni di ICAD NON valido");
+        logger.error("❌ Formato XML delle erogazioni di ICAD NON valido");
         break;
       }
 
       // Converto XML in JSON:
       const parser = new XMLParser();
       const json = parser.parse(xmlBody);
-      //logger.info("Risposta: ", JSON.stringify(json, null, 2))
 
       // Ora che ho i dati ci sono delle opzioni
       // 1) Il dato è un array, quindi ci sono più erogazioni. Le aggiungo all'array finale e ripeto
@@ -195,13 +206,13 @@ async function getErogazioniList(storeID: string, icadID: number) {
       }
       // Caso 3: Non c'è più niente da estrarre, mi fermo
       else {
-        logger.info(`Estrazione terminata per lo store ${storeID}`);
+        logger.info(`✅ Estrazione terminata per lo store ${storeID}`);
         ripeti = false;
       }
     } catch (error) {
       ripeti = false;
       logger.error(
-        `Errore durante la chiamata API per estrarre le erogazioni:`,
+        `❌ Errore durante la chiamata API per estrarre le erogazioni:`,
         error
       );
       return false;
@@ -210,6 +221,10 @@ async function getErogazioniList(storeID: string, icadID: number) {
 
   return listErogazioni;
 }
+
+logger.info("🚀 Script avviato con successo.", { mail_log: true });
+
+const pool = await getDatabasePool();
 
 // Otteniamo, per ogni impianto rilevato sul DB, l'ultima erogazione registrata
 const lastIDList = await executeQuery(`SELECT
@@ -231,17 +246,20 @@ for (const item of lastIDList) {
 const storeIDList = await getListStoreID();
 
 for (const storeID of storeIDList) {
-  logger.info(`Elaborazione dello Store: ${storeID} in corso... `);
+  logger.info(`✅ Elaborazione dello Store: ${storeID} in corso... `);
 
   // Ottengo l'ultimo ID erogato per lo store, oppure undefined se non esiste
   const lastIcadID = STORE_LASTID_MAP[storeID];
 
   // Se lo store non esiste, sollevo un errore e salto lo store
   if (!lastIcadID) {
-    logger.error(`Lo store ID ${storeID} non esiste nel DB, salto lo store`);
+    logger.error(`❌ Lo store ID ${storeID} non esiste nel DB`, {
+      mail_log: true,
+    });
+    KPILog[1] = (KPILog[1] || 0) + 1;
     continue;
   } else {
-    logger.info(`Ultimo ICAD ID rilevato: ${lastIcadID}`);
+    logger.info(`✅ Ultimo ICAD ID rilevato: ${lastIcadID}`);
   }
 
   //API verso ICAD per ottenere tutte le erogazioni dell'impianto in questione
@@ -252,10 +270,20 @@ for (const storeID of storeIDList) {
     continue;
   }
 
-  logger.debug(`Erogazioni estratte: ${erogazioniList}`);
-  logger.info(`Numero erogazioni estratte: ${erogazioniList.length}`);
+  if (erogazioniList.length === 0) {
+    // Salto l'impianto perché non ho ricevuto erogazioni
+    logger.warn(
+      `⚠️ Nessuna erogazione trovata per lo store ${storeID} con ultimo ID ICAD ${lastIcadID}.`,
+      { mail_log: true }
+    );
+    KPILog[2] = (KPILog[2] || 0) + 1;
+    continue;
+  }
 
-  const pool = await getDatabasePool();
+  logger.debug(
+    `🐛 Erogazioni estratte: ${JSON.stringify(erogazioniList, null, 2)}`
+  );
+  logger.info(`✅ Numero erogazioni estratte: ${erogazioniList.length}`);
 
   //ciclo sulle erogazioni
   // insert nel DB
@@ -347,12 +375,38 @@ for (const storeID of storeIDList) {
         .input("NumeroTransazione", sql.BigInt, erogazione.NumeroTransazione)
         .input("ID_ICAD", sql.BigInt, erogazione.ID_ICAD)
         .query(query);
+
+      logger.info(`✅ Erogazioni inserite correttamente`);
+      KPILog[0] = (KPILog[0] || 0) + 1;
     } catch (err) {
       // 1) log completo
-      console.error(
-        `Errore insert erogazione ID_ICAD=${erogazione.ID_ICAD}`,
-        err
+      logger.error(
+        `❌ Errore insert erogazione ID_ICAD=${erogazione.ID_ICAD} con Errore: ${err}`,
+        { mail_log: true }
       );
+      KPILog[1] = (KPILog[1] || 0) + 1;
     }
   }
 }
+
+await pool.close();
+
+logger.info("🚀 Estrazione terminata con successo.", { mail_log: true });
+
+// aspetta che Winston completi tutti i setImmediate interni
+await new Promise((resolve) => setImmediate(resolve));
+
+// ora leggi TUTTI i log
+const logSummary = memoryTransport.getLogSummary();
+
+// Invia il riepilogo via email
+try {
+  await sendLogSummary(logSummary, KPILog);
+  logger.info("✅ Email inviata con il riepilogo dei log.");
+} catch (error) {
+  logger.error("❌ Errore nell'invio dell'email:", error);
+}
+
+logger.info("🚀 Script terminato con successo.");
+
+process.exit(0);

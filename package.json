@@ -5,7 +5,9 @@
   "main": ".dist/main.js",
   "scripts": {
     "dev": "nodemon --ext ts --exec \"npx tsx src\\main.ts\"",
-    "build": "tsc",
+    "build:ts": "tsc",
+    "build:assets": "copyfiles -u 1 src/**/*.html .dist",
+    "build": "npm run build:ts && npm run build:assets",
     "start": "node .dist/main.js",
     "postinstall": "npm install -g pm2 typescript"
   },
@@ -33,7 +35,9 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "@types/mssql": "^9.1.7"
+    "@types/mssql": "^9.1.7",
+    "@types/nodemailer": "^6.4.17",
+    "copyfiles": "^2.4.1"
   },
   "type": "module"
 }
