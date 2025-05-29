@@ -408,7 +408,6 @@ const logSummary = memoryTransport.getLogSummary();
 // Invia il riepilogo via email
 try {
   await sendLogSummary(logSummary, KPILog);
-  logger.info("✅ Email inviata con il riepilogo dei log.");
 } catch (error) {
   logger.error("❌ Errore nell'invio dell'email:", error);
 }

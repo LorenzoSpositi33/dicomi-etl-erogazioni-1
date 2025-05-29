@@ -9,6 +9,7 @@
     "build:assets": "copyfiles -u 1 src/**/*.html .dist",
     "build": "npm run build:ts && npm run build:assets",
     "start": "node .dist/main.js",
+    "prod": "npm install && npm run build && npm start",
     "postinstall": "npm install -g pm2 typescript"
   },
   "repository": {
