@@ -87,6 +87,7 @@ function formattaErogazione(erogazione: any) {
   };
 }
 
+// Esegue una query SQL e restituisce il risultato, o va in errore gestito
 async function executeQuery(query: string) {
   try {
     const pool = await getDatabasePool();
@@ -94,6 +95,7 @@ async function executeQuery(query: string) {
     const result = await pool?.request().query(query);
     return result?.recordset;
   } catch (err) {
+    logger.error(`Errore durante l'esecuzione della query: ${query}`, err);
     throw `Errore nella query: ${err}`;
   }
 }
@@ -121,15 +123,20 @@ async function getListStoreID(ImpiantoCodice = 0) {
 
       return list.map((item: any) => item.STOREID);
     } else {
-      logger.info(
+      logger.error(
         `Formato XML dell'anagrafica degli impianti ICAD non valido: ${result.err.msg}`,
         result
       );
     }
   } catch (error) {
-    throw `Errore nella chiamata API: ${error}`;
+    logger.error(
+      "Errore durante la chiamata API per ottenere gli impianti:",
+      error
+    );
+    throw `Errore durante la chiamata API per ottenere gli impianti: ${error}`;
   }
 }
+
 async function getErogazioniList(storeID: string, icadID: number) {
   let ripeti = true;
   let lastIcadID = icadID;
@@ -148,7 +155,7 @@ async function getErogazioniList(storeID: string, icadID: number) {
           H: ICAD_Hash(`${API_RETISTA}${storeID}${lastIcadID}`),
         },
       });
-      // TODO: Dopo aver verificato lo status 200
+
       const xmlBody = response.data;
       const result = XMLValidator.validate(xmlBody);
       if (result !== true) {
@@ -193,7 +200,11 @@ async function getErogazioniList(storeID: string, icadID: number) {
       }
     } catch (error) {
       ripeti = false;
-      throw `Errore durante la chiamata API per estrarre le erogazioni: ${error}`;
+      logger.error(
+        `Errore durante la chiamata API per estrarre le erogazioni:`,
+        error
+      );
+      return false;
     }
   } while (ripeti);
 
@@ -227,7 +238,7 @@ for (const storeID of storeIDList) {
 
   // Se lo store non esiste, sollevo un errore e salto lo store
   if (!lastIcadID) {
-    logger.error("STORE ID NON TROVATO");
+    logger.error(`Lo store ID ${storeID} non esiste nel DB, salto lo store`);
     continue;
   } else {
     logger.info(`Ultimo ICAD ID rilevato: ${lastIcadID}`);
@@ -236,14 +247,21 @@ for (const storeID of storeIDList) {
   //API verso ICAD per ottenere tutte le erogazioni dell'impianto in questione
   const erogazioniList = await getErogazioniList(storeID, lastIcadID);
 
-  logger.info(`Erogazioni Estratte: ${erogazioniList.length}`);
+  if (!erogazioniList) {
+    // Salto l'impianto perché ho ricevuto errore nelle erogazioni
+    continue;
+  }
+
+  logger.debug(`Erogazioni estratte: ${erogazioniList}`);
+  logger.info(`Numero erogazioni estratte: ${erogazioniList.length}`);
+
+  const pool = await getDatabasePool();
 
   //ciclo sulle erogazioni
   // insert nel DB
   for (const erogazione of erogazioniList) {
-    const pool = await getDatabasePool();
-
-    const query = `
+    try {
+      const query = `
     INSERT INTO ${DB_TABLE_EROGAZIONI}
     (
       ImpiantoCodice, 
@@ -301,33 +319,40 @@ for (const storeID of storeIDList) {
       @ID_ICAD
     )`;
 
-    const result = await pool
-      .request()
-      .input("ImpiantoCodice", sql.NVarChar, erogazione.ImpiantoCodice)
-      .input("DataOra", sql.DateTime, erogazione.DataOra)
-      .input("DataCompetenza", sql.DateTime, erogazione.DataCompetenza)
-      .input("TipoDevice", sql.NVarChar, erogazione.TipoDevice)
-      .input("ImpiantoLink", sql.NVarChar, erogazione.ImpiantoLink)
-      .input("ImpiantoNome", sql.NVarChar, erogazione.ImpiantoNome)
-      .input("ImpiantoStoreID", sql.NVarChar, erogazione.ImpiantoStoreID)
-      .input("ImportoTot", sql.Money, erogazione.ImportoTot)
-      .input("Litri", sql.Decimal, erogazione.Litri)
-      .input("Tessera", sql.NVarChar, erogazione.Tessera)
-      .input("Lotto", sql.Int, erogazione.Lotto)
-      .input("NumeroMovimento", sql.Int, erogazione.NumeroMovimento)
-      .input("TipoOperazione", sql.NVarChar, erogazione.TipoOperazione)
-      .input("TipoPagamento", sql.NVarChar, erogazione.TipoPagamento)
-      .input("PompaPistola", sql.Int, erogazione.PompaPistola)
-      .input("PompaNumero", sql.Int, erogazione.PompaNumero)
-      .input("Prezzo", sql.Money, erogazione.Prezzo)
-      .input("ProdottoCodice", sql.NVarChar, erogazione.ProdottoCodice)
-      .input("ProdottoNome", sql.NVarChar, erogazione.ProdottoNome)
-      .input("TipoCarta", sql.NVarChar, erogazione.TipoCarta)
-      .input("TipoPrezzo", sql.NVarChar, erogazione.TipoPrezzo)
-      .input("TotaleEL", sql.Int, erogazione.TotaleEL)
-      .input("TotaleMEC", sql.Int, erogazione.TotaleMEC)
-      .input("NumeroTransazione", sql.BigInt, erogazione.NumeroTransazione)
-      .input("ID_ICAD", sql.BigInt, erogazione.ID_ICAD)
-      .query(query);
+      await pool
+        .request()
+        .input("ImpiantoCodice", sql.NVarChar, erogazione.ImpiantoCodice)
+        .input("DataOra", sql.DateTime, erogazione.DataOra)
+        .input("DataCompetenza", sql.DateTime, erogazione.DataCompetenza)
+        .input("TipoDevice", sql.NVarChar, erogazione.TipoDevice)
+        .input("ImpiantoLink", sql.NVarChar, erogazione.ImpiantoLink)
+        .input("ImpiantoNome", sql.NVarChar, erogazione.ImpiantoNome)
+        .input("ImpiantoStoreID", sql.NVarChar, erogazione.ImpiantoStoreID)
+        .input("ImportoTot", sql.Money, erogazione.ImportoTot)
+        .input("Litri", sql.Decimal, erogazione.Litri)
+        .input("Tessera", sql.NVarChar, erogazione.Tessera)
+        .input("Lotto", sql.Int, erogazione.Lotto)
+        .input("NumeroMovimento", sql.Int, erogazione.NumeroMovimento)
+        .input("TipoOperazione", sql.NVarChar, erogazione.TipoOperazione)
+        .input("TipoPagamento", sql.NVarChar, erogazione.TipoPagamento)
+        .input("PompaPistola", sql.Int, erogazione.PompaPistola)
+        .input("PompaNumero", sql.Int, erogazione.PompaNumero)
+        .input("Prezzo", sql.Money, erogazione.Prezzo)
+        .input("ProdottoCodice", sql.NVarChar, erogazione.ProdottoCodice)
+        .input("ProdottoNome", sql.NVarChar, erogazione.ProdottoNome)
+        .input("TipoCarta", sql.NVarChar, erogazione.TipoCarta)
+        .input("TipoPrezzo", sql.NVarChar, erogazione.TipoPrezzo)
+        .input("TotaleEL", sql.Int, erogazione.TotaleEL)
+        .input("TotaleMEC", sql.Int, erogazione.TotaleMEC)
+        .input("NumeroTransazione", sql.BigInt, erogazione.NumeroTransazione)
+        .input("ID_ICAD", sql.BigInt, erogazione.ID_ICAD)
+        .query(query);
+    } catch (err) {
+      // 1) log completo
+      console.error(
+        `Errore insert erogazione ID_ICAD=${erogazione.ID_ICAD}`,
+        err
+      );
+    }
   }
 }

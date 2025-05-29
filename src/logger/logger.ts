@@ -65,6 +65,19 @@ const logger: winston.Logger = winston.createLogger({
         })
       ),
     }),
+    new winston.transports.File({
+      filename: path.join(__dirname, "..", "..", "logs", "debug.log"),
+      level: "debug",
+      format: winston.format.combine(
+        winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+        winston.format.printf(({ timestamp, level, message, ...meta }) => {
+          const metaString = Object.keys(meta).length
+            ? ` ${JSON.stringify(meta)}`
+            : "";
+          return `[${timestamp}] ${level.toUpperCase()}: ${message}${metaString}`;
+        })
+      ),
+    }),
   ],
 });
 
