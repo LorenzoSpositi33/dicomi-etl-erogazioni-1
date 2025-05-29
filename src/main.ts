@@ -254,7 +254,7 @@ for (const storeID of storeIDList) {
 
   // Se lo store non esiste, sollevo un errore e salto lo store
   if (!lastIcadID) {
-    logger.error(`❌ Lo store ID ${storeID} non esiste nel DB`, {
+    logger.error(`❌ Store ID ${storeID} non esiste nel DB`, {
       mail_log: true,
     });
     KPILog[1] = (KPILog[1] || 0) + 1;
@@ -274,7 +274,7 @@ for (const storeID of storeIDList) {
   if (erogazioniList.length === 0) {
     // Salto l'impianto perché non ho ricevuto erogazioni
     logger.warn(
-      `⚠️ Nessuna erogazione trovata per lo store ${storeID} con ultimo ID ICAD ${lastIcadID}.`,
+      `⚠️ Store ID ${storeID}, nessuna erogazione.`,
       { mail_log: true }
     );
     KPILog[2] = (KPILog[2] || 0) + 1;
@@ -381,7 +381,7 @@ for (const storeID of storeIDList) {
       // 1) log completo
       impiantoOK = false;
       logger.error(
-        `❌ Errore insert erogazione ID_ICAD=${erogazione.ID_ICAD} con Errore: ${err}`,
+        `❌ Store ID ${erogazione.ImpiantoStoreID}, errore inserimento nel DB: ${err}`,
         { mail_log: true }
       );
       KPILog[1] = (KPILog[1] || 0) + 1;
