@@ -287,6 +287,7 @@ for (const storeID of storeIDList) {
 
   //ciclo sulle erogazioni
   // insert nel DB
+  let impiantoOK = true;
   for (const erogazione of erogazioniList) {
     try {
       const query = `
@@ -375,17 +376,21 @@ for (const storeID of storeIDList) {
         .input("NumeroTransazione", sql.BigInt, erogazione.NumeroTransazione)
         .input("ID_ICAD", sql.BigInt, erogazione.ID_ICAD)
         .query(query);
-
-      logger.info(`✅ Erogazioni inserite correttamente`);
-      KPILog[0] = (KPILog[0] || 0) + 1;
     } catch (err) {
       // 1) log completo
+      impiantoOK = false;
       logger.error(
         `❌ Errore insert erogazione ID_ICAD=${erogazione.ID_ICAD} con Errore: ${err}`,
         { mail_log: true }
       );
       KPILog[1] = (KPILog[1] || 0) + 1;
+      continue;
     }
+  }
+
+  if (impiantoOK) {
+    logger.info(`✅ Erogazioni inserite correttamente`);
+    KPILog[0] = (KPILog[0] || 0) + 1;
   }
 }
 
