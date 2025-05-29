@@ -222,7 +222,7 @@ async function getErogazioniList(storeID: string, icadID: number) {
   return listErogazioni;
 }
 
-logger.info("🚀 Script avviato con successo.", { mail_log: true });
+logger.info("🚀 Script avviato con successo", { mail_log: true });
 
 const pool = await getDatabasePool();
 
@@ -274,7 +274,7 @@ for (const storeID of storeIDList) {
   if (erogazioniList.length === 0) {
     // Salto l'impianto perché non ho ricevuto erogazioni
     logger.warn(
-      `⚠️ Store ID ${storeID}, nessuna erogazione.`,
+      `⚠️ Store ID ${storeID}, nessuna erogazione`,
       { mail_log: true }
     );
     KPILog[2] = (KPILog[2] || 0) + 1;
@@ -397,7 +397,7 @@ for (const storeID of storeIDList) {
 
 await pool.close();
 
-logger.info("🚀 Estrazione terminata con successo.", { mail_log: true });
+logger.info("🚀 Estrazione terminata con successo", { mail_log: true });
 
 // aspetta che Winston completi tutti i setImmediate interni
 await new Promise((resolve) => setImmediate(resolve));
