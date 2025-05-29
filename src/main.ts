@@ -171,8 +171,8 @@ async function getErogazioniList(storeID: string, icadID: number) {
       const xmlBody = response.data;
       const result = XMLValidator.validate(xmlBody);
       if (result !== true) {
-        logger.error("❌ Formato XML delle erogazioni di ICAD NON valido");
-        break;
+        logger.error(`❌ Store ID ${storeID}, formato XML delle erogazioni di ICAD NON valido`, { mail_log: true });
+        return false;
       }
 
       // Converto XML in JSON:
@@ -212,8 +212,7 @@ async function getErogazioniList(storeID: string, icadID: number) {
     } catch (error) {
       ripeti = false;
       logger.error(
-        `❌ Errore durante la chiamata API per estrarre le erogazioni:`,
-        error
+        `❌ Store ID ${storeID}, errore durante la chiamata API per estrarre le erogazioni: ${error}`, { mail_log: true }
       );
       return false;
     }
