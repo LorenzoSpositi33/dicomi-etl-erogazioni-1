@@ -3,10 +3,8 @@ import crypto from "crypto";
 import axios from "axios";
 import { XMLValidator, XMLParser } from "fast-xml-parser";
 import { sql, getDatabasePool } from "./db/db.js";
-import { parse, startOfDay } from "date-fns";
 import { logger, memoryTransport } from "./logger/logger.js";
 import { sendLogSummary } from "./logger/emailSender.js";
-import { log } from "console";
 
 if (
   !process.env.DB_USER ||
