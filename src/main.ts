@@ -61,12 +61,9 @@ function ICAD_Hash(text: string) {
 }
 
 function formattaErogazione(erogazione: any) {
-  const DataOra = parse(
-    String(erogazione.DATETIME),
-    "dd/MM/yyyy HH:mm:ss",
-    new Date()
-  );
-  const DataCompetenza = startOfDay(DataOra);
+  const [dd, MM, yyyy, hh, mm, ss] = String(erogazione.DATETIME).match(/\d+/g)!;
+  const DataOra = new Date(Date.UTC(+yyyy, +MM - 1, +dd, +hh, +mm, +ss));
+  const DataCompetenza = new Date(Date.UTC(+yyyy, +MM - 1, +dd, 0, 0, 0));
 
   return {
     ImpiantoCodice: String(erogazione.IMPIANTO.codice),
@@ -171,7 +168,10 @@ async function getErogazioniList(storeID: string, icadID: number) {
       const xmlBody = response.data;
       const result = XMLValidator.validate(xmlBody);
       if (result !== true) {
-        logger.error(`❌ Store ID ${storeID}, formato XML delle erogazioni di ICAD NON valido`, { mail_log: true });
+        logger.error(
+          `❌ Store ID ${storeID}, formato XML delle erogazioni di ICAD NON valido`,
+          { mail_log: true }
+        );
         return false;
       }
 
@@ -212,7 +212,8 @@ async function getErogazioniList(storeID: string, icadID: number) {
     } catch (error) {
       ripeti = false;
       logger.error(
-        `❌ Store ID ${storeID}, errore durante la chiamata API per estrarre le erogazioni: ${error}`, { mail_log: true }
+        `❌ Store ID ${storeID}, errore durante la chiamata API per estrarre le erogazioni: ${error}`,
+        { mail_log: true }
       );
       return false;
     }
@@ -272,10 +273,9 @@ for (const storeID of storeIDList) {
 
   if (erogazioniList.length === 0) {
     // Salto l'impianto perché non ho ricevuto erogazioni
-    logger.warn(
-      `⚠️ Store ID ${storeID}, nessuna erogazione`,
-      { mail_log: true }
-    );
+    logger.warn(`⚠️ Store ID ${storeID}, nessuna erogazione`, {
+      mail_log: true,
+    });
     KPILog[2] = (KPILog[2] || 0) + 1;
     continue;
   }
