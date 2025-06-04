@@ -64,7 +64,8 @@ function formattaErogazione(erogazione: any) {
   const DataCompetenza = new Date(Date.UTC(+yyyy, +MM - 1, +dd, 0, 0, 0));
 
   return {
-    ImpiantoCodice: String(erogazione.IMPIANTO.codice),
+    // Aggiungo 0 davanti per ottenere le 4 cifre
+    ImpiantoCodice: String(erogazione.IMPIANTO.codice).padStart(4, "0"),
     DataOra: DataOra as Date,
     DataCompetenza: DataCompetenza as Date,
     TipoDevice: String(erogazione.DEVICETYPE),
