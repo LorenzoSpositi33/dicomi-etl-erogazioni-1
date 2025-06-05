@@ -131,10 +131,14 @@ async function getListStoreID(ImpiantoCodice = 0) {
 
       const list = json.ArrayOfWrapImpianti.WrapImpianti;
 
-      return list.map((item: any) => ({
-        NOME: item.NOME,
-        STOREID: item.STOREID,
-      }));
+      console.log(list);
+
+      return list
+        .filter((item: any) => item.STATO === "True")
+        .map((item: any) => ({
+          NOME: item.NOME,
+          STOREID: item.STOREID,
+        }));
     } else {
       logger.error(
         `❌ Formato XML dell'anagrafica degli impianti ICAD non valido: ${result.err.msg}`,
