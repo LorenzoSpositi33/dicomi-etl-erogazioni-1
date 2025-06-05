@@ -131,7 +131,10 @@ async function getListStoreID(ImpiantoCodice = 0) {
 
       const list = json.ArrayOfWrapImpianti.WrapImpianti;
 
-      return list.map((item: any) => item.STOREID);
+      return list.map((item: any) => ({
+        NOME: item.NOME,
+        STOREID: item.STOREID,
+      }));
     } else {
       logger.error(
         `❌ Formato XML dell'anagrafica degli impianti ICAD non valido: ${result.err.msg}`,
@@ -254,15 +257,18 @@ for (const item of lastIDList) {
 // Ottengo la lista di tutti gli store ID di Dicomi presenti in ICAD, per cui estrarre le erogazioni
 const storeIDList = await getListStoreID();
 
-for (const storeID of storeIDList) {
-  logger.info(`✅ Elaborazione dello Store: ${storeID} in corso... `);
+for (const store of storeIDList) {
+  const storeID = store.STOREID;
+  const storeName = store.NOME;
+
+  logger.info(`✅ Elaborazione dell'Impianto: ${storeName} in corso... `);
 
   // Ottengo l'ultimo ID erogato per lo store, oppure undefined se non esiste
   const lastIcadID = STORE_LASTID_MAP[storeID];
 
   // Se lo store non esiste, sollevo un errore e salto lo store
   if (!lastIcadID) {
-    logger.error(`❌ Store ID ${storeID} non esiste nel DB`, {
+    logger.error(`❌ Impianto ${storeName} non esiste nel DB`, {
       mail_log: true,
     });
     KPILog[1] = (KPILog[1] || 0) + 1;
@@ -281,7 +287,7 @@ for (const storeID of storeIDList) {
 
   if (erogazioniList.length === 0) {
     // Salto l'impianto perché non ho ricevuto erogazioni
-    logger.warn(`⚠️ Store ID ${storeID}, nessuna erogazione`, {
+    logger.warn(`⚠️ Impianto ${storeName}, nessuna erogazione`, {
       mail_log: true,
     });
     KPILog[2] = (KPILog[2] || 0) + 1;
@@ -388,7 +394,7 @@ for (const storeID of storeIDList) {
       // 1) log completo
       impiantoOK = false;
       logger.error(
-        `❌ Store ID ${erogazione.ImpiantoStoreID}, errore inserimento nel DB: ${err}`,
+        `❌ Impianto ${erogazione.ImpiantoNome}, errore inserimento nel DB: ${err}`,
         { mail_log: true }
       );
       KPILog[1] = (KPILog[1] || 0) + 1;
