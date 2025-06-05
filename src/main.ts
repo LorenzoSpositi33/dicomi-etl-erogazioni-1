@@ -16,7 +16,8 @@ if (
   !process.env.API_CRYPTO_KEY ||
   !process.env.API_ROOT ||
   !process.env.API_RETISTA ||
-  !process.env.DB_TABLE_EROGAZIONI
+  !process.env.DB_TABLE_EROGAZIONI ||
+  !process.env.DB_TABLE_IMPIANTI
 ) {
   throw "Impostare tutte le variabili di ambiente";
 }
@@ -26,6 +27,7 @@ const API_CRYPTO_KEY = process.env.API_CRYPTO_KEY;
 const API_ROOT = process.env.API_ROOT;
 const API_RETISTA = process.env.API_RETISTA;
 const DB_TABLE_EROGAZIONI = process.env.DB_TABLE_EROGAZIONI;
+const DB_TABLE_IMPIANTI = process.env.DB_TABLE_IMPIANTI;
 
 // KPI per email
 const KPILog: any = {};
@@ -227,13 +229,20 @@ const pool = await getDatabasePool();
 
 // Otteniamo, per ogni impianto rilevato sul DB, l'ultima erogazione registrata (Cerco negli ultimi 4 mesi)
 const lastIDList = await executeQuery(`SELECT
-ImpiantoStoreID AS Impianto,
-MAX(ID_ICAD) AS LAST_ID
+er.ImpiantoStoreID AS Impianto,
+MAX(er.ID_ICAD) AS LAST_ID
 
-FROM ${DB_TABLE_EROGAZIONI}
-WHERE DataCompetenza > DATEADD(MONTH, -4, GETDATE())
+FROM ${DB_TABLE_EROGAZIONI} er
 
-GROUP BY ImpiantoStoreID`);
+LEFT JOIN ${DB_TABLE_IMPIANTI} imp
+
+ON er.ImpiantoCodice = imp.ImpiantoCodice
+
+WHERE
+er.DataCompetenza > DATEADD(MONTH, -4, GETDATE())
+AND imp.StatoAttivoSiNo = 1
+
+GROUP BY er.ImpiantoStoreID`);
 
 const STORE_LASTID_MAP = [];
 
