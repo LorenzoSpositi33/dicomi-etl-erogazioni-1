@@ -307,6 +307,7 @@ for (const store of storeIDList) {
   // insert nel DB
   let impiantoOK = true;
   for (const erogazione of erogazioniList) {
+    console.log("QUESTO E' LA RIGA: ", erogazione.Litri);
     try {
       const query = `
     INSERT INTO ${DB_TABLE_EROGAZIONI}
