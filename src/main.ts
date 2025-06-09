@@ -307,7 +307,9 @@ for (const store of storeIDList) {
   // insert nel DB
   let impiantoOK = true;
   for (const erogazione of erogazioniList) {
-    console.log("QUESTO E' LA RIGA: ", erogazione.Litri);
+
+    console.log("OKAY: ", erogazione.Litri)
+
     try {
       const query = `
     INSERT INTO ${DB_TABLE_EROGAZIONI}
@@ -377,7 +379,8 @@ for (const store of storeIDList) {
         .input("ImpiantoNome", sql.NVarChar, erogazione.ImpiantoNome)
         .input("ImpiantoStoreID", sql.NVarChar, erogazione.ImpiantoStoreID)
         .input("ImportoTot", sql.Money, erogazione.ImportoTot)
-        .input("Litri", sql.Decimal, erogazione.Litri)
+        // Per non avere errori, devo dichiarare anche la precisione del Decimal
+        .input("Litri", sql.Decimal(18, 2), erogazione.Litri)
         .input("Tessera", sql.NVarChar, erogazione.Tessera)
         .input("Lotto", sql.Int, erogazione.Lotto)
         .input("NumeroMovimento", sql.Int, erogazione.NumeroMovimento)
