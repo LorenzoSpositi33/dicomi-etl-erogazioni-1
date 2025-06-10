@@ -308,7 +308,6 @@ for (const store of storeIDList) {
   let impiantoOK = true;
   for (const erogazione of erogazioniList) {
 
-    console.log("OKAY: ", erogazione.Litri)
 
     try {
       const query = `
