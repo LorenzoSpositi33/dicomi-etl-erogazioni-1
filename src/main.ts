@@ -377,7 +377,7 @@ for (const store of storeIDList) {
         .input("ImpiantoLink", sql.NVarChar, erogazione.ImpiantoLink)
         .input("ImpiantoNome", sql.NVarChar, erogazione.ImpiantoNome)
         .input("ImpiantoStoreID", sql.NVarChar, erogazione.ImpiantoStoreID)
-        .input("ImportoTot", sql.Money, erogazione.ImportoTot)
+        .input("ImportoTot", sql.Decimal(19, 4), erogazione.ImportoTot)
         // Per non avere errori, devo dichiarare anche la precisione del Decimal
         .input("Litri", sql.Decimal(18, 2), erogazione.Litri)
         .input("Tessera", sql.NVarChar, erogazione.Tessera)
@@ -387,7 +387,7 @@ for (const store of storeIDList) {
         .input("TipoPagamento", sql.NVarChar, erogazione.TipoPagamento)
         .input("PompaPistola", sql.Int, erogazione.PompaPistola)
         .input("PompaNumero", sql.Int, erogazione.PompaNumero)
-        .input("Prezzo", sql.Money, erogazione.Prezzo)
+        .input("Prezzo", sql.Decimal(19, 4), erogazione.Prezzo)
         .input("ProdottoCodice", sql.NVarChar, erogazione.ProdottoCodice)
         .input("ProdottoNome", sql.NVarChar, erogazione.ProdottoNome)
         .input("TipoCarta", sql.NVarChar, erogazione.TipoCarta)
