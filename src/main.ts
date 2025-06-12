@@ -286,6 +286,7 @@ for (const store of storeIDList) {
 
   if (!erogazioniList) {
     // Salto l'impianto perché ho ricevuto errore nelle erogazioni
+    KPILog[1] = (KPILog[1] || 0) + 1;
     continue;
   }
 
@@ -307,8 +308,6 @@ for (const store of storeIDList) {
   // insert nel DB
   let impiantoOK = true;
   for (const erogazione of erogazioniList) {
-
-
     try {
       const query = `
     INSERT INTO ${DB_TABLE_EROGAZIONI}
