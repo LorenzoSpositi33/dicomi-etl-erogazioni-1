@@ -1,26 +1,22 @@
-import sql from "mssql";
+import sql, { config as SqlConfig } from "mssql";
 import { logger } from "../logger/logger.js"; // Importa il logger
 import "dotenv/config";
 
-interface DBConfig {
-  user: string;
-  password: string;
-  server: string;
-  database: string;
-  options: {
-    encrypt: boolean;
-    trustServerCertificate: boolean;
-  };
-}
-
-const config: DBConfig = {
+const config: SqlConfig  = {
   user: process.env.DB_USER ?? "",
   password: process.env.DB_PASSWORD ?? "",
   server: process.env.DB_SERVER ?? "",
   database: process.env.DB_NAME ?? "",
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000
+  },
   options: {
     encrypt: process.env.DB_ENCRYPT === "true", // Converte la stringa in booleano
     trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === "true", // Converte la stringa in booleano
+    connectTimeout: 60000,
+    requestTimeout: 300000
   },
 };
 
