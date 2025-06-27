@@ -11,7 +11,8 @@ const apiPort: string = process.env.DB_API_PORT!;
 
 export async function sendLogSummary(
   logSummary: string,
-  KPILog: Record<number, number | string>
+  KPILog: Record<number, number | string>,
+  excelLogPath: string,
 ): Promise<void> {
   // Percorso del file corrente (ESM)
   const __filename = fileURLToPath(import.meta.url);
@@ -68,6 +69,12 @@ export async function sendLogSummary(
     subject: "ETL Erogazioni",
     text: "Questa email contiene del codice HTML, utilizzare un dispositivo idoneo per la visualizzazione o contattare ICE Informatics",
     html: htmlContent,
+     attachments: [
+         {
+            filename: 'log.xlsx',
+            path: excelLogPath  // il percorso del file Excel da allegare
+         }
+      ]
   };
 
   // Invio

@@ -5,7 +5,15 @@ import { XMLValidator, XMLParser } from "fast-xml-parser";
 import { sql, getDatabasePool } from "./db/db.js";
 import { logger, memoryTransport } from "./logger/logger.js";
 import { sendLogSummary } from "./logger/emailSender.js";
+import ExcelJS from 'exceljs';
+import path from 'path';
 
+import { fileURLToPath } from 'url';
+import { count } from "console";
+ 
+
+ 
+ 
 if (
   !process.env.DB_USER ||
   !process.env.DB_PASSWORD ||
@@ -31,6 +39,14 @@ const DB_TABLE_IMPIANTI = process.env.DB_TABLE_IMPIANTI;
 
 // KPI per email
 const KPILog: any = {};
+
+
+//Varibaili Excel
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const excelLogDir = path.join(__dirname, 'logger', 'xlsx');
+const excelLogPath = path.join(excelLogDir, 'erog_logs.xlsx');
+let salvate = 0;
 
 /**
  * ICAD_Hash
@@ -154,11 +170,10 @@ async function getListStoreID(ImpiantoCodice = 0) {
   }
 }
 
-async function getErogazioniList(storeID: string, icadID: number) {
+async function getErogazioniList(storeID: string, icadID: number, storeName: string ) {
   let ripeti = true;
   let lastIcadID = icadID;
   const listErogazioni = [];
-
   do {
     // Continuo a ricevere le informazioni di erogazione, andando sempre a prendere l'ultimo ID ritornato, finché non ricevo più dati
     // (tutte le erogazioni fino alla più recente sono state estratte)
@@ -210,7 +225,7 @@ async function getErogazioniList(storeID: string, icadID: number) {
         listErogazioni.push(formattaErogazione(item));
 
         // Imposto l'icad ID come l'ID corrente.
-        lastIcadID = item.ID;
+           lastIcadID = item.ID;
       }
       // Caso 3: Non c'è più niente da estrarre, mi fermo
       else {
@@ -220,7 +235,7 @@ async function getErogazioniList(storeID: string, icadID: number) {
     } catch (error) {
       ripeti = false;
       logger.error(
-        `❌ Store ID ${storeID}, errore durante la chiamata API per estrarre le erogazioni: ${error}`,
+        `❌ Impianto DICOMI ${storeName}, errore durante la chiamata API per estrarre le erogazioni: ${error}`,
         { mail_log: true }
       );
       return false;
@@ -233,7 +248,22 @@ async function getErogazioniList(storeID: string, icadID: number) {
 logger.info("🚀 Script avviato con successo", { mail_log: true });
 
 const pool = await getDatabasePool();
+// Array per accumulare i dati per Excel
+//TODO: togliere any
+const excelData: any[] = [];
+// Array per contenere tutti gli impianti rilevati per nuova gestione
+const ossTracker = [];
 
+// Creazione del file Excel con exceljs
+const workbook = new ExcelJS.Workbook();
+const worksheet = workbook.addWorksheet('Impianti');
+
+// Definizione delle colonne
+worksheet.columns = [
+   { header: 'Impianto Codice', key: 'Impia', width: 20 },
+   { header: 'Erogazioni', key: 'Ero', width: 10 },
+   { header: 'Orario Ultima Erogazione', key: 'Ulti', width: 50 },
+];
 // Otteniamo, per ogni impianto rilevato sul DB, l'ultima erogazione registrata (Cerco negli ultimi 4 mesi)
 const lastIDList = await executeQuery(`SELECT
 er.ImpiantoStoreID AS Impianto,
@@ -251,24 +281,33 @@ AND imp.StatoAttivoSiNo = 1
 
 GROUP BY er.ImpiantoStoreID`);
 
+
+
 const STORE_LASTID_MAP = [];
 
 // Mapping degli impianti sul last_id nel DB
 for (const item of lastIDList) {
-  STORE_LASTID_MAP[item.Impianto] = item.LAST_ID;
+  
+ STORE_LASTID_MAP[item.Impianto] = item.LAST_ID
+  
 }
 
+
 // Ottengo la lista di tutti gli store ID di Dicomi presenti in ICAD, per cui estrarre le erogazioni
+
 const storeIDList = await getListStoreID();
 
 for (const store of storeIDList) {
+  //TODO: TOGLIERE ANY
   const storeID = store.STOREID;
   const storeName = store.NOME;
 
   logger.info(`✅ Elaborazione dell'Impianto: ${storeName} in corso... `);
 
   // Ottengo l'ultimo ID erogato per lo store, oppure undefined se non esiste
-  const lastIcadID = STORE_LASTID_MAP[storeID];
+  const lastEntry = STORE_LASTID_MAP[storeID];
+  const lastIcadID = lastEntry?.lastID;
+  const storeDicomiID = lastEntry?.dicomiID ?? 'Sconosciuto';
 
   // Se lo store non esiste, sollevo un errore e salto lo store
   if (!lastIcadID) {
@@ -282,7 +321,7 @@ for (const store of storeIDList) {
   }
 
   //API verso ICAD per ottenere tutte le erogazioni dell'impianto in questione
-  const erogazioniList = await getErogazioniList(storeID, lastIcadID);
+  const erogazioniList = await getErogazioniList(storeID, lastIcadID,storeName);
 
   if (!erogazioniList) {
     // Salto l'impianto perché ho ricevuto errore nelle erogazioni
@@ -396,6 +435,7 @@ for (const store of storeIDList) {
         .input("NumeroTransazione", sql.BigInt, erogazione.NumeroTransazione)
         .input("ID_ICAD", sql.BigInt, erogazione.ID_ICAD)
         .query(query);
+        salvate++;
     } catch (err) {
       // 1) log completo
       impiantoOK = false;
@@ -411,9 +451,29 @@ for (const store of storeIDList) {
   if (impiantoOK) {
     logger.info(`✅ Erogazioni inserite correttamente`);
     KPILog[0] = (KPILog[0] || 0) + 1;
+    const ultima = erogazioniList[erogazioniList.length - 1];
+     excelData.push({
+    Impia: storeName,
+    Ero: salvate,
+    Ulti: ultima.DataOra.toLocaleString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }),
+  });
   }
 }
+// Aggiungo ogni riga raccolta nell'array
 
+excelData.forEach(item => {
+   worksheet.addRow(item);
+});
+
+// Salva il workbook in un file Excel
+await workbook.xlsx.writeFile(excelLogPath);
 await pool.close();
 
 logger.info("🚀 Estrazione terminata con successo", { mail_log: true });
@@ -426,7 +486,7 @@ const logSummary = memoryTransport.getLogSummary();
 
 // Invia il riepilogo via email
 try {
-  await sendLogSummary(logSummary, KPILog);
+  await sendLogSummary(logSummary, KPILog, excelLogPath);
 } catch (error) {
   logger.error("❌ Errore nell'invio dell'email:", error);
 }
