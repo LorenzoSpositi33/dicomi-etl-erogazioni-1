@@ -305,9 +305,7 @@ for (const store of storeIDList) {
   logger.info(`✅ Elaborazione dell'Impianto: ${storeName} in corso... `);
 
   // Ottengo l'ultimo ID erogato per lo store, oppure undefined se non esiste
-  const lastEntry = STORE_LASTID_MAP[storeID];
-  const lastIcadID = lastEntry?.lastID;
-  const storeDicomiID = lastEntry?.dicomiID ?? 'Sconosciuto';
+    const lastIcadID = STORE_LASTID_MAP[storeID];
 
   // Se lo store non esiste, sollevo un errore e salto lo store
   if (!lastIcadID) {
